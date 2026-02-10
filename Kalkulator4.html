@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>Kalkulator Anggaran IAI STIBA Makassar</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- SheetJS (Excel) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- jsPDF + html2canvas (PDF) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg-main:#f4f6fa;
+  --bg-card:#ffffff;
+  --bg-summary:#2563eb;
+  --text-main:#1e293b;
+  --text-muted:#64748b;
+  --border-soft:#e2e8f0;
+}
+body.dark{
+  --bg-main:#020617;
+  --bg-card:#020617;
+  --bg-summary:#0f172a;
+  --text-main:#e5e7eb;
+  --text-muted:#94a3b8;
+  --border-soft:#1f2937;
+}
+
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg-main);
+  padding:40px 18px 60px;
+  color:var(--text-main);
+  transition:background .25s,color .25s;
+}
+.app-container{max-width:1200px;margin:auto;}
+
+/* HEADER */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:20px;
+}
+.logo-area{
+  display:flex;align-items:center;gap:12px;
+}
+.logo-area img{
+  max-width:64px;height:auto;
+  filter:drop-shadow(0 5px 10px rgba(0,0,0,.15));
+}
+.app-title{
+  display:flex;flex-direction:column;
+}
+.app-title h1{
+  font-size:22px;font-weight:700;
+}
+.app-title span{
+  font-size:12px;color:var(--text-muted);
+}
+
+/* TOGGLE DARK MODE */
+.toggle-wrap{
+  display:flex;align-items:center;gap:8px;
+}
+.toggle-label{font-size:13px;color:var(--text-muted);}
+.switch{position:relative;display:inline-block;width:46px;height:24px;}
+.switch input{opacity:0;width:0;height:0;}
+.slider{
+  position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;
+  background:#cbd5e1;transition:.3s;border-radius:999px;
+}
+.slider:before{
+  position:absolute;content:"";height:18px;width:18px;
+  left:3px;bottom:3px;background:white;transition:.3s;border-radius:50%;
+  box-shadow:0 2px 4px rgba(0,0,0,.3);
+}
+input:checked + .slider{background:#2563eb;}
+input:checked + .slider:before{transform:translateX(20px);}
+
+/* CARD */
+.card{
+  background:var(--bg-card);
+  padding:22px 26px;
+  border-radius:18px;
+  margin-bottom:22px;
+  border:1px solid var(--border-soft);
+  box-shadow:0 8px 24px rgba(15,23,42,.12);
+  transition:.25s;
+}
+body.dark .card{box-shadow:0 10px 30px rgba(0,0,0,.6);}
+.card:hover{
+  transform:translateY(-3px);
+  box-shadow:0 14px 30px rgba(15,23,42,.25);
+}
+h2{font-size:18px;margin-bottom:14px;}
+label{font-weight:600;font-size:13px;margin-bottom:6px;display:block;}
+
+/* INPUT */
+input[type="text"],input[type="number"]{
+  width:100%;padding:10px 12px;font-size:14px;margin-bottom:10px;
+  border-radius:10px;border:1px solid #cbd5e1;background:#f8fafc;
+  transition:.22s;
+}
+body.dark input[type="text"],body.dark input[type="number"]{
+  background:#020617;border-color:#1f2937;color:#e5e7eb;
+}
+input:focus{
+  background:#fff;border-color:#2563eb;
+  box-shadow:0 0 0 3px rgba(37,99,235,.25);outline:none;
+}
+body.dark input:focus{background:#020617;}
+input[readonly]{
+  background:#e5e7eb;font-weight:600;
+}
+body.dark input[readonly]{background:#111827;color:#e5e7eb;}
+
+.row{display:flex;flex-wrap:wrap;gap:16px;}
+.col{flex:1;min-width:220px;}
+
+/* BUTTONS */
+button{
+  padding:9px 16px;border-radius:999px;border:none;cursor:pointer;
+  font-weight:600;font-size:13px;transition:.22s;margin-top:6px;margin-right:6px;
+}
+button:active{transform:scale(.97);}
+.btn-primary{
+  background:#2563eb;color:#fff;box-shadow:0 4px 12px rgba(37,99,235,.3);
+}
+.btn-primary:hover{background:#1d4ed8;}
+.btn-outline{
+  background:#fff;color:#2563eb;border:2px solid #2563eb;
+}
+.btn-outline:hover{background:#2563eb;color:#fff;}
+.btn-danger{
+  background:#ef4444;color:#fff;
+}
+.btn-danger:hover{background:#dc2626;}
+
+/* TABLE */
+table{width:100%;border-collapse:separate;border-spacing:0 8px;font-size:13px;margin-top:8px;}
+th{
+  background:#eaf1ff;padding:9px;font-weight:700;color:#374151;text-align:left;
+  border-radius:8px 8px 0 0;
+}
+body.dark th{background:#1d283a;color:#e5e7eb;}
+td{
+  background:#ffffff;padding:8px 10px;border-radius:6px;transition:.2s;
+}
+body.dark td{background:#020617;border:1px solid #1f2937;}
+tbody tr:hover{background:#eef6ff;transform:scale(1.01);}
+body.dark tbody tr:hover{background:#111827;}
+.text-right{text-align:right;}
+
+/* UNIT BOX */
+.unit-box{
+  background:#fdfdfd;border-radius:14px;border:1px solid #e2e8f0;
+  margin-top:14px;padding:14px;
+  transition:.22s;
+}
+body.dark .unit-box{background:#020617;border-color:#1f2937;}
+.unit-box:hover{box-shadow:0 10px 25px rgba(0,0,0,.08);}
+body.dark .unit-box:hover{box-shadow:0 12px 28px rgba(0,0,0,.6);}
+.unit-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.unit-header input{margin-bottom:0;font-weight:700;}
+.unit-total{font-weight:700;margin-top:6px;font-size:13px;}
+
+/* SUMMARY / DASHBOARD */
+.summary-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+  gap:12px;
+  margin-bottom:12px;
+}
+.summary-card{
+  background:rgba(255,255,255,.9);
+  border-radius:12px;
+  padding:10px 12px;
+  border:1px solid #e2e8f0;
+  font-size:13px;
+}
+body.dark .summary-card{
+  background:#020617;border-color:#1f2937;color:#e5e7eb;
+}
+.summary-label{color:#64748b;font-size:12px;}
+.summary-value{font-weight:700;margin-top:4px;font-size:14px;}
+
+.summary-box{
+  background:#2563eb;
+  color:#f1f5f9;
+  padding:16px;border-radius:14px;font-size:14px;line-height:1.7;
+  box-shadow:0 10px 30px rgba(37,99,235,.3);
+}
+body.dark .summary-box{background:#0f172a;}
+.summary-box strong{color:#facc15;}
+.status-ok{color:#d1fae5;font-weight:bold;}
+.status-warning{color:#fee2e2;font-weight:bold;}
+
+.dashboard-row{
+  display:flex;flex-wrap:wrap;gap:20px;margin-top:14px;
+}
+.chart-panel{flex:2;min-width:260px;}
+.history-panel{flex:1.3;min-width:230px;}
+
+.history-list{
+  margin-top:8px;font-size:12px;max-height:260px;overflow-y:auto;
+}
+.history-item{
+  border:1px solid var(--border-soft);
+  border-radius:10px;
+  padding:8px 9px;
+  margin-bottom:8px;
+  background:#f8fafc;
+  display:flex;flex-direction:column;gap:2px;
+}
+body.dark .history-item{background:#020617;}
+.history-title{font-weight:700;font-size:12px;}
+.history-meta{font-size:11px;color:var(--text-muted);}
+.history-actions{
+  margin-top:4px;display:flex;justify-content:flex-end;gap:6px;
+}
+.mt-8{margin-top:8px;}
+</style>
+</head>
+
+<body>
+<div class="app-container">
+
+  <!-- TOP BAR -->
+  <div class="topbar">
+    <div class="logo-area">
+      <!-- Pakai nama file logo yang Anda punya -->
+      <img src="Logo Tengah.png" alt="Logo IAI STIBA Makassar">
+      <div class="app-title">
+        <h1>Kalkulator Anggaran STIBA</h1>
+        <span>Aplikasi untuk Membantu Pencairan Dana Kegiatan</span>
+      </div>
+    </div>
+    <div class="toggle-wrap">
+      <span class="toggle-label">Mode Gelap</span>
+      <label class="switch">
+        <input type="checkbox" id="themeToggle">
+        <span class="slider"></span>
+      </label>
+    </div>
+  </div>
+
+  <!-- BAGIAN 1: PENDAPATAN -->
+  <div class="card">
+    <h2>Pendapatan & Dana Safety</h2>
+    <div class="row">
+      <div class="col">
+        <label>Rencana Pendapatan (Rp)</label>
+        <input type="text" id="rencana" class="rp-input" value="1000000000">
+      </div>
+      <div class="col">
+        <label>Realisasi Pendapatan (Rp)</label>
+        <input type="text" id="realisasi" class="rp-input" value="800000000">
+      </div>
+      <div class="col">
+        <label>Dana Safety / Pelampung (%)</label>
+        <input type="number" id="safety" value="20" min="0" max="100">
+      </div>
+      <div class="col">
+        <label>Dana Setelah Safety (Rp)</label>
+        <input type="text" id="danaAman" readonly>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col">
+        <label>Nama Periode (mis. Semester Ganjil 2025)</label>
+        <input type="text" id="periodeNama" placeholder="Contoh: TA 2025/2026 - Ganjil">
+      </div>
+    </div>
+
+    <button class="btn-primary" id="btnHitung">Hitung</button>
+    <button class="btn-outline" id="btnSet100">Set % Belanja = 100%</button>
+    <button class="btn-outline" id="btnUseSuggested">Gunakan % Usulan Belanja</button>
+    <button class="btn-outline" id="btnSaveHistory">Simpan ke Riwayat</button>
+
+    <p id="infoPendapatan" style="margin-top:10px;font-weight:600;"></p>
+  </div>
+
+  <!-- BAGIAN 2: UNIT KERJA -->
+  <div class="card">
+    <h2>Unit Kerja & Jenis Belanja</h2>
+    <button class="btn-primary" id="btnAddUnit">+ Tambah Unit</button>
+    <div id="unitContainer"></div>
+  </div>
+
+  <!-- BAGIAN 3: DASHBOARD & RINGKASAN -->
+  <div class="card">
+    <h2>Ringkasan & Dashboard</h2>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Rencana Pendapatan</div>
+        <div class="summary-value" id="kpiRencana">Rp 0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Realisasi Pendapatan</div>
+        <div class="summary-value" id="kpiRealisasi">Rp 0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Dana Safety</div>
+        <div class="summary-value" id="kpiSafety">Rp 0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Dana Setelah Safety</div>
+        <div class="summary-value" id="kpiDanaAman">Rp 0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Total Belanja Dicairkan</div>
+        <div class="summary-value" id="kpiCair">Rp 0</div>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Sisa Dana</div>
+        <div class="summary-value" id="kpiSisa">Rp 0</div>
+      </div>
+    </div>
+
+    <div class="summary-box mt-8" id="summaryText">
+      Belum ada input. Silakan masukkan data.
+    </div>
+
+    <div class="dashboard-row">
+      <div class="chart-panel">
+        <h3 style="font-size:14px;margin:14px 0 6px;">Grafik Pencairan per Unit</h3>
+        <canvas id="barChart" height="150"></canvas>
+        <h3 style="font-size:14px;margin:18px 0 6px;">Distribusi Dana (Safety vs Cair vs Sisa)</h3>
+        <canvas id="pieChart" height="160"></canvas>
+      </div>
+
+      <div class="history-panel">
+        <h3 style="font-size:14px;margin:14px 0 6px;">Riwayat Periode</h3>
+        <div class="history-list" id="historyList"></div>
+
+        <h3 style="font-size:14px;margin:14px 0 6px;">Export</h3>
+        <button class="btn-primary" id="btnExportExcel">Export Excel</button>
+        <button class="btn-outline" id="btnExportPDF">Export PDF</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded',()=>{
+  /* ==== KONSTANTA ==== */
+  const HISTORY_KEY='stibaBudgetHistory';
+
+  /* ==== THEME TOGGLE ==== */
+  const themeToggle=document.getElementById('themeToggle');
+  const savedTheme=localStorage.getItem('stibaTheme');
+  if(savedTheme==='dark'){
+    document.body.classList.add('dark');
+    themeToggle.checked=true;
+  }
+  themeToggle.addEventListener('change',()=>{
+    if(themeToggle.checked){
+      document.body.classList.add('dark');
+      localStorage.setItem('stibaTheme','dark');
+    }else{
+      document.body.classList.remove('dark');
+      localStorage.setItem('stibaTheme','light');
+    }
+  });
+
+  /* ==== HELPER ANGKA ==== */
+  function num(s){return parseInt(String(s).replace(/[^0-9]/g,"")||0);}
+  function formatRp(n){return "Rp "+(n||0).toLocaleString("id-ID");}
+  function formatFieldRp(input){
+    let x=input.value.replace(/[^0-9]/g,"");
+    if(!x){input.value="";return;}
+    input.value="Rp "+parseInt(x).toLocaleString("id-ID");
+  }
+
+  /* ==== DOM ==== */
+  const rencana=document.getElementById('rencana');
+  const realisasi=document.getElementById('realisasi');
+  const safety=document.getElementById('safety');
+  const danaAman=document.getElementById('danaAman');
+  const infoPendapatan=document.getElementById('infoPendapatan');
+  const periodeNama=document.getElementById('periodeNama');
+  const unitContainer=document.getElementById('unitContainer');
+  const summaryText=document.getElementById('summaryText');
+  const historyList=document.getElementById('historyList');
+
+  const kpiRencana=document.getElementById('kpiRencana');
+  const kpiRealisasi=document.getElementById('kpiRealisasi');
+  const kpiSafety=document.getElementById('kpiSafety');
+  const kpiDanaAman=document.getElementById('kpiDanaAman');
+  const kpiCair=document.getElementById('kpiCair');
+  const kpiSisa=document.getElementById('kpiSisa');
+
+  document.querySelectorAll('.rp-input').forEach(el=>{
+    formatFieldRp(el);
+    el.addEventListener('input',()=>{formatFieldRp(el);hitung();});
+    el.addEventListener('blur',()=>{formatFieldRp(el);hitung();});
+  });
+
+  document.getElementById('btnHitung').onclick=hitung;
+  document.getElementById('btnSet100').onclick=()=>{
+    document.querySelectorAll('.persen').forEach(p=>p.value=100);
+    hitung();
+  };
+  document.getElementById('btnAddUnit').onclick=addUnit;
+  document.getElementById('btnSaveHistory').onclick=saveHistory;
+  document.getElementById('btnExportExcel').onclick=exportExcel;
+  document.getElementById('btnExportPDF').onclick=exportPDF;
+  document.getElementById('btnUseSuggested').onclick=applySuggestedPct;
+  safety.addEventListener('input',hitung);
+
+  let unitCounter=0;
+  let stibaRekomendasiPct=100;
+
+  /* ==== CHARTS ==== */
+  let barChart, pieChart;
+  const barCtx=document.getElementById('barChart').getContext('2d');
+  const pieCtx=document.getElementById('pieChart').getContext('2d');
+
+  function updateCharts(data){
+    const {unitLabels,unitTotals,safetyAmount,totalCair,sisaDana} = data;
+
+    if(barChart) barChart.destroy();
+    barChart=new Chart(barCtx,{
+      type:'bar',
+      data:{labels:unitLabels,datasets:[{label:'Total Cair per Unit',data:unitTotals}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+
+    if(pieChart) pieChart.destroy();
+    const pieData=[
+      safetyAmount>0?safetyAmount:0,
+      totalCair>0?totalCair:0,
+      sisaDana>0?sisaDana:0
+    ];
+    pieChart=new Chart(pieCtx,{
+      type:'pie',
+      data:{labels:['Dana Safety','Belanja Dicairkan','Sisa Dana'],datasets:[{data:pieData}]},
+      options:{responsive:true}
+    });
+  }
+
+  /* ==== UNIT & BELANJA ==== */
+  function addUnit(){
+    unitCounter++;
+    const box=document.createElement('div');
+    box.className="unit-box";
+    box.innerHTML=`
+      <div class="unit-header">
+        <input type="text" value="Unit Kerja ${unitCounter}" class="unitName">
+        <button class="btn-danger btnRemoveUnit">Hapus Unit</button>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Jenis Belanja</th><th>Anggaran</th><th>%</th><th>Cair</th><th></th>
+        </tr></thead>
+        <tbody class="belanja"></tbody>
+      </table>
+      <button class="btn-outline btnAddBelanja">+ Tambah Belanja</button>
+      <div class="unit-total">Total Unit: <span class="unitTotal">Rp 0</span></div>
+    `;
+    unitContainer.appendChild(box);
+
+    box.querySelector('.btnRemoveUnit').onclick=()=>{box.remove();hitung();};
+    box.querySelector('.btnAddBelanja').onclick=()=>addBelanja(box);
+    addBelanja(box);
+  }
+
+  function addBelanja(unitBox){
+    const tbody=unitBox.querySelector('.belanja');
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+      <td><input class="jenis"></td>
+      <td><input class="rp-input anggaran"></td>
+      <td><input type="number" class="persen" value="100" min="0" max="200" style="width:70px"></td>
+      <td class="text-right cair">Rp 0</td>
+      <td><button class="btn-danger delRow">X</button></td>
+    `;
+    tbody.appendChild(tr);
+
+    const anggaran=tr.querySelector('.anggaran');
+    formatFieldRp(anggaran);
+    anggaran.addEventListener('input',()=>{formatFieldRp(anggaran);hitung();});
+    anggaran.addEventListener('blur',()=>{formatFieldRp(anggaran);hitung();});
+
+    tr.querySelector('.persen').addEventListener('input',hitung);
+    tr.querySelector('.delRow').onclick=()=>{tr.remove();hitung();};
+
+    hitung();
+  }
+
+  /* ==== HITUNG + USULAN % ==== */
+  function hitung(){
+    const r = num(rencana.value);
+    const re = num(realisasi.value);
+    let safPct = parseInt(safety.value||0);
+    if(isNaN(safPct)) safPct=0;
+    safPct=Math.min(Math.max(safPct,0),100);
+    safety.value=safPct;
+
+    const danaSafety = re*safPct/100;
+    const danaReal   = re-danaSafety;
+    danaAman.value   = formatRp(danaReal);
+
+    infoPendapatan.innerHTML =
+      `Realisasi: <strong>${formatRp(re)}</strong>, `+
+      `Safety: <strong>${safPct}% (${formatRp(danaSafety)})</strong>, `+
+      `Dana Aman: <strong>${formatRp(danaReal)}</strong>`;
+
+    let totalAnggaran=0;
+    let totalCair=0;
+    const unitLabels=[];
+    const unitTotals=[];
+
+    document.querySelectorAll('.unit-box').forEach(box=>{
+      let totalUnit=0;
+      box.querySelectorAll('tbody tr').forEach(row=>{
+        const ang = num(row.querySelector('.anggaran').value);
+        const p   = (parseFloat(row.querySelector('.persen').value)||0)/100;
+        const cair= ang*p;
+        totalAnggaran+=ang;
+        totalUnit+=cair;
+        row.querySelector('.cair').innerText = formatRp(cair);
+      });
+      totalCair+=totalUnit;
+      box.querySelector('.unitTotal').innerText = formatRp(totalUnit);
+      const name = box.querySelector('.unitName').value || 'Unit';
+      unitLabels.push(name);
+      unitTotals.push(totalUnit);
+    });
+
+    const sisa = danaReal-totalCair;
+    const persenTerpakai = danaReal>0 ? (totalCair/danaReal)*100 : 0;
+    const statusClass = sisa<0 ? 'status-warning':'status-ok';
+    const statusText  = sisa<0 ? 'Belanja Melebihi Dana Setelah Safety' : 'Belanja Masih Aman';
+
+    // Rekomendasi %
+    let rekom=0;
+    if(totalAnggaran>0){
+      rekom=(danaReal/totalAnggaran)*100;
+      rekom=Math.min(Math.max(rekom,0),100);
+    }
+    stibaRekomendasiPct=rekom;
+
+    // KPI
+    kpiRencana.textContent   = formatRp(r);
+    kpiRealisasi.textContent = formatRp(re);
+    kpiSafety.textContent    = formatRp(danaSafety);
+    kpiDanaAman.textContent  = formatRp(danaReal);
+    kpiCair.textContent      = formatRp(totalCair);
+    kpiSisa.textContent      = formatRp(sisa);
+
+    // Summary
+    summaryText.innerHTML =
+      `Total Anggaran (semua unit): <strong>${formatRp(totalAnggaran)}</strong><br>`+
+      `Dana setelah Safety: <strong>${formatRp(danaReal)}</strong><br>`+
+      `Total Belanja Dicairkan: <strong>${formatRp(totalCair)}</strong> `+
+      `(=${persenTerpakai.toFixed(2)}% dari dana aman)<br>`+
+      `Sisa Dana: <strong>${formatRp(sisa)}</strong><br>`+
+      `Usulan rata-rata % pencairan belanja: <strong>${rekom.toFixed(2)}%</strong> (agar total belanja ≈ dana aman)<br>`+
+      `Status: <span class="${statusClass}">${statusText}</span>`;
+
+    // Grafik
+    updateCharts({
+      unitLabels,
+      unitTotals,
+      safetyAmount:danaSafety,
+      totalCair,
+      sisaDana:sisa
+    });
+  }
+
+  function applySuggestedPct(){
+    const pct=stibaRekomendasiPct||0;
+    document.querySelectorAll('.persen').forEach(p=>{
+      p.value=pct.toFixed(2);
+    });
+    hitung();
+    alert('Usulan % belanja '+pct.toFixed(2)+'% telah diterapkan ke semua baris.');
+  }
+
+  /* ==== HISTORY (LOCAL STORAGE) ==== */
+  function loadHistoryStorage(){
+    try{
+      const raw=localStorage.getItem(HISTORY_KEY);
+      if(!raw) return [];
+      return JSON.parse(raw);
+    }catch(e){return [];}
+  }
+  function saveHistoryStorage(data){
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(data));
+  }
+
+  function getCurrentSnapshot(){
+    const r = num(rencana.value);
+    const re = num(realisasi.value);
+    const safPct = parseInt(safety.value||0) || 0;
+    const danaSafety = re*safPct/100;
+    const danaReal   = re-danaSafety;
+
+    const units=[];
+    document.querySelectorAll('.unit-box').forEach(box=>{
+      const name=box.querySelector('.unitName').value;
+      const items=[];
+      box.querySelectorAll('tbody tr').forEach(row=>{
+        items.push({
+          jenis:row.querySelector('.jenis').value,
+          anggaran:num(row.querySelector('.anggaran').value),
+          persen:parseFloat(row.querySelector('.persen').value)||0
+        });
+      });
+      units.push({name,items});
+    });
+
+    let totalCair=0;
+    units.forEach(u=>{
+      u.items.forEach(it=>{
+        totalCair+=it.anggaran*(it.persen/100);
+      });
+    });
+
+    return {
+      name:periodeNama.value || '',
+      timestamp:Date.now(),
+      rencana:r,
+      realisasi:re,
+      safetyPct:safPct,
+      danaSafety,
+      danaSetelahSafety:danaReal,
+      totalCair,
+      sisaDana:danaReal-totalCair,
+      units
+    };
+  }
+
+  function renderHistory(){
+    const histories=loadHistoryStorage();
+    historyList.innerHTML='';
+    if(histories.length===0){
+      historyList.innerHTML='<span style="font-size:12px;color:#94a3b8;">Belum ada riwayat tersimpan.</span>';
+      return;
+    }
+    histories.slice().reverse().forEach((item,idxRev)=>{
+      const idx=histories.length-1-idxRev;
+      const div=document.createElement('div');
+      div.className='history-item';
+      div.innerHTML=`
+        <div class="history-title">${item.name || '(Tanpa Nama Periode)'}</div>
+        <div class="history-meta">${new Date(item.timestamp).toLocaleString('id-ID')}</div>
+        <div class="history-meta">
+          Realisasi: ${formatRp(item.realisasi)} | Safety: ${item.safetyPct}% |
+          Cair: ${formatRp(item.totalCair)} | Sisa: ${formatRp(item.sisaDana)}
+        </div>
+        <div class="history-actions">
+          <button class="btn-outline btn-sm-load" data-idx="${idx}">Muat</button>
+          <button class="btn-danger btn-sm-del" data-idx="${idx}">Hapus</button>
+        </div>
+      `;
+      historyList.appendChild(div);
+    });
+
+    historyList.querySelectorAll('.btn-sm-load').forEach(btn=>{
+      btn.onclick=()=>loadHistoryByIndex(parseInt(btn.dataset.idx));
+    });
+    historyList.querySelectorAll('.btn-sm-del').forEach(btn=>{
+      btn.onclick=()=>deleteHistoryByIndex(parseInt(btn.dataset.idx));
+    });
+  }
+
+  function saveHistory(){
+    const snap=getCurrentSnapshot();
+    const list=loadHistoryStorage();
+    list.push(snap);
+    saveHistoryStorage(list);
+    renderHistory();
+    alert('Riwayat periode berhasil disimpan.');
+  }
+
+  function loadHistoryByIndex(idx){
+    const list=loadHistoryStorage();
+    const item=list[idx];
+    if(!item) return;
+
+    rencana.value=item.rencana;
+    realisasi.value=item.realisasi;
+    safety.value=item.safetyPct;
+    periodeNama.value=item.name || '';
+
+    formatFieldRp(rencana);
+    formatFieldRp(realisasi);
+
+    unitContainer.innerHTML='';
+    unitCounter=0;
+    item.units.forEach(u=>{
+      unitCounter++;
+      const box=document.createElement('div');
+      box.className="unit-box";
+      box.innerHTML=`
+        <div class="unit-header">
+          <input type="text" value="${u.name}" class="unitName">
+          <button class="btn-danger btnRemoveUnit">Hapus Unit</button>
+        </div>
+        <table>
+          <thead><tr>
+            <th>Jenis Belanja</th><th>Anggaran</th><th>%</th><th>Cair</th><th></th>
+          </tr></thead>
+          <tbody class="belanja"></tbody>
+        </table>
+        <button class="btn-outline btnAddBelanja">+ Tambah Belanja</button>
+        <div class="unit-total">Total Unit: <span class="unitTotal">Rp 0</span></div>
+      `;
+      unitContainer.appendChild(box);
+      box.querySelector('.btnRemoveUnit').onclick=()=>{box.remove();hitung();};
+      box.querySelector('.btnAddBelanja').onclick=()=>addBelanja(box);
+
+      const tbody=box.querySelector('.belanja');
+      tbody.innerHTML='';
+      u.items.forEach(it=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`
+          <td><input class="jenis" value="${it.jenis}"></td>
+          <td><input class="rp-input anggaran" value="${it.anggaran}"></td>
+          <td><input type="number" class="persen" value="${it.persen}" min="0" max="200" style="width:70px"></td>
+          <td class="text-right cair">Rp 0</td>
+          <td><button class="btn-danger delRow">X</button></td>
+        `;
+        tbody.appendChild(tr);
+
+        const anggaran=tr.querySelector('.anggaran');
+        formatFieldRp(anggaran);
+        anggaran.addEventListener('input',()=>{formatFieldRp(anggaran);hitung();});
+        anggaran.addEventListener('blur',()=>{formatFieldRp(anggaran);hitung();});
+
+        tr.querySelector('.persen').addEventListener('input',hitung);
+        tr.querySelector('.delRow').onclick=()=>{tr.remove();hitung();};
+      });
+    });
+
+    hitung();
+    alert('Periode berhasil dimuat.');
+  }
+
+  function deleteHistoryByIndex(idx){
+    const list=loadHistoryStorage();
+    if(!list[idx])return;
+    list.splice(idx,1);
+    saveHistoryStorage(list);
+    renderHistory();
+  }
+
+  /* ==== EXPORT ==== */
+  function exportExcel(){
+    if(typeof XLSX==='undefined'){alert('Library Excel (XLSX) belum termuat. Pastikan koneksi internet aktif.');return;}
+    const snap=getCurrentSnapshot();
+    const wsData=[];
+    wsData.push(["Periode",snap.name]);
+    wsData.push(["Tanggal Simpan",new Date(snap.timestamp).toLocaleString('id-ID')]);
+    wsData.push([]);
+    wsData.push(["Rencana",snap.rencana]);
+    wsData.push(["Realisasi",snap.realisasi]);
+    wsData.push(["Safety %",snap.safetyPct]);
+    wsData.push(["Dana Safety",snap.danaSafety]);
+    wsData.push(["Dana Setelah Safety",snap.danaSetelahSafety]);
+    wsData.push(["Total Cair",snap.totalCair]);
+    wsData.push(["Sisa Dana",snap.sisaDana]);
+    wsData.push([]);
+    wsData.push(["Unit Kerja","Jenis Belanja","Anggaran","% Cair","Nominal Cair"]);
+
+    snap.units.forEach(u=>{
+      u.items.forEach(it=>{
+        wsData.push([
+          u.name,
+          it.jenis,
+          it.anggaran,
+          it.persen,
+          it.anggaran*(it.persen/100)
+        ]);
+      });
+    });
+
+    const wb=XLSX.utils.book_new();
+    const ws=XLSX.utils.aoa_to_sheet(wsData);
+    XLSX.utils.book_append_sheet(wb,ws,"Anggaran");
+    XLSX.writeFile(wb,"kalkulator_anggaran_stiba.xlsx");
+  }
+
+async function exportPDF(){
+  if (typeof window.jspdf === 'undefined') {
+    alert('Library PDF (jsPDF) belum termuat. Pastikan koneksi internet aktif.');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF('p', 'pt', 'a4');
+  const pageWidth  = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const snap = getCurrentSnapshot(); // pakai fungsi yang sudah ada
+
+  let y = 40;
+  const lineGap = 16;
+
+  function addLine(text, size = 11, bold = false){
+    pdf.setFontSize(size);
+    pdf.setFont('helvetica', bold ? 'bold' : 'normal');
+    // cek jika mau lewat batas bawah halaman
+    if (y > pageHeight - 40) {
+      pdf.addPage();
+      y = 40;
+    }
+    pdf.text(text, 40, y);
+    y += lineGap;
+  }
+
+  // HEADER
+  pdf.setFontSize(16);
+  pdf.setFont('helvetica','bold');
+  pdf.text('Laporan Kalkulator Anggaran IAI STIBA Makassar', 40, y);
+  y += lineGap + 4;
+
+  pdf.setFontSize(11);
+  pdf.setFont('helvetica','normal');
+  addLine('Periode         : ' + (snap.name || '-'));
+  addLine('Tanggal Cetak   : ' + new Date().toLocaleString('id-ID'));
+  y += 4;
+
+  // PENDAPATAN & SAFETY
+  addLine('--- Pendapatan & Dana Safety ---', 12, true);
+  addLine('Rencana Pendapatan    : ' + formatRp(snap.rencana));
+  addLine('Realisasi Pendapatan  : ' + formatRp(snap.realisasi));
+  addLine('Persentase Safety     : ' + snap.safetyPct + ' %');
+  addLine('Dana Safety           : ' + formatRp(snap.danaSafety));
+  addLine('Dana Setelah Safety   : ' + formatRp(snap.danaSetelahSafety));
+  addLine('Total Cair            : ' + formatRp(snap.totalCair));
+  addLine('Sisa Dana             : ' + formatRp(snap.sisaDana));
+  y += 6;
+
+  // Ringkasan singkat
+  addLine('--- Ringkasan ---', 12, true);
+  const totalAnggaran = snap.units.reduce((sum,u)=>(
+    sum + u.items.reduce((s,it)=>s+it.anggaran,0)
+  ),0);
+  addLine('Total Anggaran Semua Unit : ' + formatRp(totalAnggaran));
+  addLine('Total Belanja Dicairkan   : ' + formatRp(snap.totalCair));
+  addLine('Sisa Dana                 : ' + formatRp(snap.sisaDana));
+  y += 6;
+
+  // TABEL PER UNIT & JENIS BELANJA
+  addLine('--- Rincian Unit Kerja & Jenis Belanja ---', 12, true);
+
+  snap.units.forEach((u, idxUnit) => {
+    if (y > pageHeight - 80) { // ganti halaman jika hampir habis
+      pdf.addPage();
+      y = 40;
+    }
+    addLine('Unit ' + (idxUnit+1) + ' : ' + (u.name || '-'), 11, true);
+
+    // Header "tabel" sederhana
+    addLine('   Jenis Belanja | Anggaran | % Cair | Nominal Cair', 10, true);
+
+    u.items.forEach(it => {
+      const nominalCair = it.anggaran * (it.persen/100);
+      const line = 
+        '   - ' + (it.jenis || '-') +
+        ' | ' + snapToShortRp(it.anggaran) +
+        ' | ' + (it.persen || 0) + '%' +
+        ' | ' + snapToShortRp(nominalCair);
+      addLine(line, 10, false);
+    });
+
+    y += 4;
+  });
+
+  pdf.save('kalkulator_anggaran_stiba.pdf');
+
+  // helper untuk ringkas angka di tabel
+  function snapToShortRp(n){
+    if (!n) return '0';
+    if (n >= 1_000_000_000) return (n/1_000_000_000).toFixed(1) + ' M';
+    if (n >= 1_000_000)     return (n/1_000_000).toFixed(1) + ' Jt';
+    if (n >= 1_000)         return (n/1_000).toFixed(1) + ' Rb';
+    return n.toString();
+  }
+}
+
+
+
+  /* ==== INIT ==== */
+  function init(){
+    renderHistory();
+    addUnit();          // satu unit awal
+    hitung();           // hitung awal agar KPI & grafik muncul
+  }
+
+  init();
+
+  /* expose load/delete for history buttons */
+  window.loadHistoryByIndex = loadHistoryByIndex;
+  window.deleteHistoryByIndex = deleteHistoryByIndex;
+});
+</script>
+</body>
+</html>
